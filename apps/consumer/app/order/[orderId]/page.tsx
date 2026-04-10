@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import QRCode from 'qrcode';
-import { useRef } from 'react';
 import { useParams } from 'next/navigation';
 
 interface OrderItem {
@@ -64,10 +63,6 @@ export default function OrderTrackingPage() {
 
         if (orderId) {
             fetchOrder();
-            <div style={{ marginTop: 24, textAlign: 'center' }}>
-                <h3>Scan to view this order</h3>
-                <canvas ref={qrCanvasRef} style={{ background: '#fff', padding: 8, borderRadius: 8 }} />
-            </div>
 
             // Poll for updates every 10 seconds
             const interval = setInterval(fetchOrder, 10000);
@@ -201,7 +196,7 @@ export default function OrderTrackingPage() {
     );
 }
 
-const styles: { [key: string]: React.CSSProperties } = {
+const styles: Record<string, CSSProperties> = {
     container: {
         minHeight: '100vh',
         backgroundColor: '#f8fafc',

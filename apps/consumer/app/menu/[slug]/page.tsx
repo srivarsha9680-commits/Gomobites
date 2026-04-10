@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import QRCode from 'qrcode';
 
@@ -39,6 +39,8 @@ export default function MenuPage() {
     const [orderType, setOrderType] = useState('dine-in');
     const [orderQrCode, setOrderQrCode] = useState<string | null>(null);
     const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
+    const [isDesktop, setIsDesktop] = useState(false);
+    const [origin, setOrigin] = useState('');
 
     useEffect(() => {
         const tableParam = searchParams?.get('table');
@@ -53,6 +55,16 @@ export default function MenuPage() {
             }
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setOrigin(window.location.origin);
+            const updateDesktop = () => setIsDesktop(window.innerWidth > 768);
+            updateDesktop();
+            window.addEventListener('resize', updateDesktop);
+            return () => window.removeEventListener('resize', updateDesktop);
+        }
+    }, []);
 
     useEffect(() => {
         const fetchMenu = async () => {
@@ -367,7 +379,7 @@ export default function MenuPage() {
                 </div>
 
                 {/* Right: Cart Sidebar */}
-                {(showCart || window.innerWidth > 768) && (
+                {(showCart || isDesktop) && (
                     <div style={styles.cartSidebar} className="cart-sidebar">
                         <h2 style={styles.cartTitle}>Order Summary</h2>
 
@@ -495,7 +507,7 @@ export default function MenuPage() {
                                 />
                             </div>
                             <p style={styles.qrUrl}>
-                                Or visit: <code>{window.location.origin}/order/{placedOrderId}</code>
+                                Or visit: <code>{origin || 'https://your-site-url'}/order/{placedOrderId}</code>
                             </p>
                             <button
                                 style={styles.doneBtn}
@@ -511,7 +523,7 @@ export default function MenuPage() {
     );
 }
 
-const styles: { [key: string]: React.CSSProperties } = {
+const styles: Record<string, CSSProperties> = {
     container: {
         minHeight: '100vh',
         backgroundColor: '#f8fafc',

@@ -294,27 +294,32 @@ app.post('/api/v1/tenant/:slug/orders', setTenantContext, async (req: Request, r
 });
 
 // Get Order Details
-app.get('/api/v1/orders/:orderId', setTenantContext, async (req: Request, res: Response) => {
-    const client = (req as any).pgClient || await pool.connect();
+app.get('/api/v1/orders/:orderId', async (req: Request, res: Response) => {
+    const client = await pool.connect();
 
     try {
-        if (!req.context?.tenantId) throw new Error('Tenant context missing');
-
-        await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [req.context.tenantId]);
-
-        const orderRes = await client.query(
-            'SELECT * FROM orders WHERE id = $1',
-            [req.params.orderId]
+        const orderId = req.params.orderId;
+        const orderTenantRes = await client.query(
+            'SELECT tenant_id FROM orders WHERE id = $1',
+            [orderId]
         );
 
-        if (orderRes.rows.length === 0) {
+        if (orderTenantRes.rows.length === 0) {
             res.status(404).json({ error: 'Order not found' });
             return;
         }
 
+        const tenantId = orderTenantRes.rows[0].tenant_id;
+        await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
+
+        const orderRes = await client.query(
+            'SELECT * FROM orders WHERE id = $1',
+            [orderId]
+        );
+
         const itemsRes = await client.query(
             'SELECT * FROM order_items WHERE order_id = $1',
-            [req.params.orderId]
+            [orderId]
         );
 
         res.json({
@@ -325,7 +330,7 @@ app.get('/api/v1/orders/:orderId', setTenantContext, async (req: Request, res: R
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     } finally {
-        if (!((req as any).pgClient)) client.release();
+        client.release();
     }
 });
 
