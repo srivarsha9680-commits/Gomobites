@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoMobites - Multi-Tenant QR-Based Restaurant Ordering System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .dark {
+            background-color: #1F2937;
+            color: #F9FAFB;
+        }
+
+        .dark .bg-white {
+            background-color: #374151;
+            color: #F9FAFB;
+        }
+
+        .dark .text-gray-800 {
+            color: #F9FAFB;
+        }
+
+        .dark .text-gray-600 {
+            color: #D1D5DB;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen font-sans">
+    <div id="app" class="container mx-auto px-4 py-8">
+        <!-- Landing Page -->
+        <div id="landing" class="text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">Welcome to GoMobites</h1>
+            <p class="text-lg text-gray-600 mb-8">Multi-Tenant QR-Based Restaurant Ordering System</p>
+            <div class="grid md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">For Customers</h2>
+                    <p class="text-gray-600 mb-4">Scan QR codes, browse menus, place orders, and track in real-time.</p>
+                    <button onclick="showConsumerView()"
+                        class="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">Enter as
+                        Customer</button>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">For Restaurant Operators</h2>
+                    <p class="text-gray-600 mb-4">Manage orders, menus, and tables efficiently.</p>
+                    <button onclick="showOperatorLogin()"
+                        class="bg-secondary text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">Login as
+                        Operator</button>
+                </div>
+            </div>
+            <button onclick="toggleTheme()"
+                class="fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">Toggle
+                Theme</button>
+        </div>
+
+        <!-- Consumer View -->
+        <div id="consumer" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Menu - <span id="currentTenantName">Select Tenant</span></h2>
+                <div class="flex space-x-4">
+                    <button onclick="showConsumerCart()" class="bg-primary text-white px-4 py-2 rounded-lg">Cart (<span
+                            id="cartCount">0</span>)</button>
+                    <button onclick="backToLanding()" class="bg-gray-500 text-white px-4 py-2 rounded-lg">Back</button>
+                </div>
+            </div>
+            <div id="tenantSelector" class="mb-6">
+                <select id="tenantSelect" onchange="selectTenant()" class="border border-gray-300 px-4 py-2 rounded-lg">
+                    <option value="">Select Restaurant</option>
+                </select>
+            </div>
+            <div id="menuContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </div>
+
+        <!-- Cart View -->
+        <div id="cart" class="hidden">
+            <h2 class="text-2xl font-bold mb-6">Your Cart</h2>
+            <div id="cartItems" class="space-y-4 mb-6"></div>
+            <div id="orderTotals" class="bg-white p-4 rounded-lg shadow-md mb-6"></div>
+            <div class="flex space-x-4">
+                <button onclick="placeOrder()" class="bg-secondary text-white px-6 py-2 rounded-lg">Place Order</button>
+                <button onclick="showConsumerView()" class="bg-gray-500 text-white px-6 py-2 rounded-lg">Back to
+                    Menu</button>
+            </div>
+        </div>
+
+        <!-- Order Status View -->
+        <div id="orderStatus" class="hidden">
+            <h2 class="text-2xl font-bold mb-6">Order Status</h2>
+            <div id="orderDetails" class="bg-white p-6 rounded-lg shadow-md"></div>
+            <button onclick="backToLanding()" class="mt-6 bg-gray-500 text-white px-6 py-2 rounded-lg">Back to
+                Home</button>
+        </div>
+
+        <!-- Operator Login -->
+        <div id="operatorLogin" class="hidden max-w-md mx-auto">
+            <h2 class="text-2xl font-bold mb-6 text-center">Operator Login</h2>
+            <form onsubmit="operatorLogin(event)" class="space-y-4">
+                <input type="text" id="username" placeholder="Username" required
+                    class="w-full border border-gray-300 px-4 py-2 rounded-lg">
+                <input type="password" id="password" placeholder="Password" required
+                    class="w-full border border-gray-300 px-4 py-2 rounded-lg">
+                <button type="submit" class="w-full bg-secondary text-white px-6 py-2 rounded-lg">Login</button>
+            </form>
+            <button onclick="backToLanding()"
+                class="mt-4 w-full bg-gray-500 text-white px-6 py-2 rounded-lg">Back</button>
+        </div>
+
+        <!-- Operator Dashboard -->
+        <div id="operatorDashboard" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Operator Dashboard - <span id="operatorTenantName"></span></h2>
+                <div class="flex space-x-4">
+                    <button onclick="showOrders()" class="bg-primary text-white px-4 py-2 rounded-lg">Orders</button>
+                    <button onclick="showMenuManagement()"
+                        class="bg-secondary text-white px-4 py-2 rounded-lg">Menu</button>
+                    <button onclick="showTableManagement()"
+                        class="bg-accent text-white px-4 py-2 rounded-lg">Tables</button>
+                    <button onclick="operatorLogout()"
+                        class="bg-gray-500 text-white px-4 py-2 rounded-lg">Logout</button>
+                </div>
+            </div>
+            <div id="dashboardContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Database Simulation
+        const DB = {
+            tenants: [
+                { id: 1, name: 'Karachi Grill', currency: 'PKR', slug: 'karachi-grill' },
+                { id: 2, name: 'SF Bistro', currency: 'USD', slug: 'sf-bistro' }
+            ],
+            categories: [
+                { id: 1, tenant_id: 1, name: 'Appetizers', sort_order: 1, is_active: true },
+                { id: 2, tenant_id: 1, name: 'Main Courses', sort_order: 2, is_active: true },
+                { id: 3, tenant_id: 2, name: 'Starters', sort_order: 1, is_active: true },
+                { id: 4, tenant_id: 2, name: 'Entrees', sort_order: 2, is_active: true }
+            ],
+            menuItems: [
+                { id: 1, category_id: 1, name: 'Chicken Tikka', description: 'Grilled chicken skewers', price: 450, image_url: '', is_available: true },
+                { id: 2, category_id: 1, name: 'Pakora', description: 'Vegetable fritters', price: 300, image_url: '', is_available: true },
+                { id: 3, category_id: 2, name: 'Biryani', description: 'Spiced rice dish', price: 800, image_url: '', is_available: true },
+                { id: 4, category_id: 3, name: 'Caesar Salad', description: 'Fresh romaine lettuce', price: 12, image_url: '', is_available: true },
+                { id: 5, category_id: 4, name: 'Grilled Salmon', description: 'Fresh Atlantic salmon', price: 28, image_url: '', is_available: true }
+            ],
+            tables: [
+                { id: 1, tenant_id: 1, number: 'T1', qr_code: 'qr1' },
+                { id: 2, tenant_id: 2, number: 'A5', qr_code: 'qr2' }
+            ],
+            orders: [],
+            users: [
+                { id: 1, tenant_id: 1, username: 'admin', password: 'admin', role: 'operator' },
+                { id: 2, tenant_id: 2, username: 'manager', password: 'manager', role: 'operator' }
+            ]
+        };
+
+        // State Management
+        const AppState = {
+            currentTenant: null,
+            currentUser: null,
+            cart: [],
+            currentOrder: null,
+            currentView: 'landing'
+        };
+
+        // Utility Functions
+        function showView(viewId) {
+            document.querySelectorAll('#app > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            AppState.currentView = viewId;
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+        }
+
+        function backToLanding() {
+            showView('landing');
+        }
+
+        // Consumer Functions
+        function showConsumerView() {
+            showView('consumer');
+            loadTenants();
+        }
+
+        function loadTenants() {
+            const select = document.getElementById('tenantSelect');
+            select.innerHTML = '<option value="">Select Restaurant</option>';
+            DB.tenants.forEach(tenant => {
+                select.innerHTML += `<option value="${tenant.id}">${tenant.name}</option>`;
+            });
+        }
+
+        function selectTenant() {
+            const tenantId = parseInt(document.getElementById('tenantSelect').value);
+            if (tenantId) {
+                AppState.currentTenant = DB.tenants.find(t => t.id === tenantId);
+                document.getElementById('currentTenantName').textContent = AppState.currentTenant.name;
+                loadMenu();
+            }
+        }
+
+        function loadMenu() {
+            const container = document.getElementById('menuContainer');
+            container.innerHTML = '';
+
+            const categories = DB.categories.filter(c => c.tenant_id === AppState.currentTenant.id && c.is_active);
+            categories.forEach(category => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'bg-white p-4 rounded-lg shadow-md';
+                categoryDiv.innerHTML = `<h3 class="text-xl font-semibold mb-4">${category.name}</h3>`;
+
+                const items = DB.menuItems.filter(i => i.category_id === category.id && i.is_available);
+                items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex justify-between items-center mb-2';
+                    itemDiv.innerHTML = `
+                        <div>
+                            <h4 class="font-medium">${item.name}</h4>
+                            <p class="text-sm text-gray-600">${item.description}</p>
+                            <p class="text-lg font-bold">${AppState.currentTenant.currency} ${item.price}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="updateCartQuantity(${item.id}, -1)" class="bg-gray-300 px-2 py-1 rounded">-</button>
+                            <span id="qty-${item.id}">0</span>
+                            <button onclick="updateCartQuantity(${item.id}, 1)" class="bg-gray-300 px-2 py-1 rounded">+</button>
+                        </div>
+                    `;
+                    categoryDiv.appendChild(itemDiv);
+                });
+
+                container.appendChild(categoryDiv);
+            });
+        }
+
+        function updateCartQuantity(itemId, delta) {
+            const item = DB.menuItems.find(i => i.id === itemId);
+            let cartItem = AppState.cart.find(c => c.id === itemId);
+
+            if (!cartItem) {
+                cartItem = { ...item, quantity: 0 };
+                AppState.cart.push(cartItem);
+            }
+
+            cartItem.quantity += delta;
+            if (cartItem.quantity <= 0) {
+                AppState.cart = AppState.cart.filter(c => c.id !== itemId);
+            }
+
+            document.getElementById(`qty-${itemId}`).textContent = cartItem.quantity || 0;
+            updateCartCount();
+        }
+
+        function updateCartCount() {
+            document.getElementById('cartCount').textContent = AppState.cart.reduce((sum, item) => sum + item.quantity, 0);
+        }
+
+        function showConsumerCart() {
+            showView('cart');
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartItems');
+            container.innerHTML = '';
+
+            AppState.cart.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex justify-between items-center bg-white p-4 rounded-lg shadow-md';
+                itemDiv.innerHTML = `
+                    <div>
+                        <h4 class="font-medium">${item.name}</h4>
+                        <p>${AppState.currentTenant.currency} ${item.price} x ${item.quantity}</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="updateCartQuantity(${item.id}, -1)" class="bg-gray-300 px-2 py-1 rounded">-</button>
+                        <span>${item.quantity}</span>
+                        <button onclick="updateCartQuantity(${item.id}, 1)" class="bg-gray-300 px-2 py-1 rounded">+</button>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+
+            const totals = calculateOrderTotals();
+            document.getElementById('orderTotals').innerHTML = `
+                <div class="space-y-2">
+                    <div class="flex justify-between"><span>Subtotal:</span><span>${AppState.currentTenant.currency} ${totals.subtotal}</span></div>
+                    <div class="flex justify-between"><span>Tax (10%):</span><span>${AppState.currentTenant.currency} ${totals.tax}</span></div>
+                    <div class="flex justify-between font-bold text-lg"><span>Total:</span><span>${AppState.currentTenant.currency} ${totals.total}</span></div>
+                </div>
+            `;
+        }
+
+        function calculateOrderTotals() {
+            const subtotal = AppState.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const tax = subtotal * 0.1;
+            const total = subtotal + tax;
+            return { subtotal: subtotal.toFixed(2), tax: tax.toFixed(2), total: total.toFixed(2) };
+        }
+
+        function placeOrder() {
+            if (AppState.cart.length === 0) {
+                alert('Cart is empty!');
+                return;
+            }
+
+            const order = {
+                id: Date.now(),
+                tenant_id: AppState.currentTenant.id,
+                items: [...AppState.cart],
+                status: 'new',
+                created_at: new Date().toISOString(),
+                queue_number: Math.floor(Math.random() * 100) + 1,
+                totals: calculateOrderTotals()
+            };
+
+            DB.orders.push(order);
+            AppState.currentOrder = order;
+            AppState.cart = [];
+            updateCartCount();
+
+            showOrderStatus();
+        }
+
+        function showOrderStatus() {
+            showView('orderStatus');
+            renderOrderStatus();
+        }
+
+        function renderOrderStatus() {
+            const order = AppState.currentOrder;
+            document.getElementById('orderDetails').innerHTML = `
+                <h3 class="text-xl font-semibold mb-4">Order #${order.id}</h3>
+                <p class="mb-2"><strong>Queue Number:</strong> ${order.queue_number}</p>
+                <p class="mb-2"><strong>Status:</strong> <span id="orderStatusText">${order.status}</span></p>
+                <p class="mb-4"><strong>Total:</strong> ${AppState.currentTenant.currency} ${order.totals.total}</p>
+                <div class="space-y-2">
+                    ${order.items.map(item => `<p>${item.name} x ${item.quantity} - ${AppState.currentTenant.currency} ${(item.price * item.quantity).toFixed(2)}</p>`).join('')}
+                </div>
+            `;
+        }
+
+        // Operator Functions
+        function showOperatorLogin() {
+            showView('operatorLogin');
+        }
+
+        function operatorLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const user = DB.users.find(u => u.username === username && u.password === password);
+            if (user) {
+                AppState.currentUser = user;
+                AppState.currentTenant = DB.tenants.find(t => t.id === user.tenant_id);
+                document.getElementById('operatorTenantName').textContent = AppState.currentTenant.name;
+                showView('operatorDashboard');
+                showOrders();
+            } else {
+                alert('Invalid credentials');
+            }
+        }
+
+        function operatorLogout() {
+            AppState.currentUser = null;
+            AppState.currentTenant = null;
+            backToLanding();
+        }
+
+        function showOrders() {
+            const content = document.getElementById('dashboardContent');
+            content.innerHTML = '<h3 class="text-xl font-semibold mb-4">Orders</h3>';
+
+            const orders = DB.orders.filter(o => o.tenant_id === AppState.currentTenant.id);
+            if (orders.length === 0) {
+                content.innerHTML += '<p>No orders yet.</p>';
+                return;
+            }
+
+            orders.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'bg-white p-4 rounded-lg shadow-md mb-4';
+                orderDiv.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-medium">Order #${order.id}</h4>
+                            <p class="text-sm text-gray-600">Queue: ${order.queue_number}</p>
+                        </div>
+                        <select onchange="updateOrderStatus(${order.id}, this.value)" class="border border-gray-300 px-2 py-1 rounded">
+                            <option value="new" ${order.status === 'new' ? 'selected' : ''}>New</option>
+                            <option value="accepted" ${order.status === 'accepted' ? 'selected' : ''}>Accepted</option>
+                            <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Preparing</option>
+                            <option value="ready" ${order.status === 'ready' ? 'selected' : ''}>Ready</option>
+                            <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        ${order.items.map(item => `<p class="text-sm">${item.name} x ${item.quantity}</p>`).join('')}
+                    </div>
+                    <p class="font-bold mt-2">${AppState.currentTenant.currency} ${order.totals.total}</p>
+                `;
+                content.appendChild(orderDiv);
+            });
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const order = DB.orders.find(o => o.id == orderId);
+            if (order) {
+                order.status = newStatus;
+                // In a real app, this would trigger real-time updates
+                showOrders();
+            }
+        }
+
+        function showMenuManagement() {
+            const content = document.getElementById('dashboardContent');
+            content.innerHTML = '<h3 class="text-xl font-semibold mb-4">Menu Management</h3>';
+
+            const categories = DB.categories.filter(c => c.tenant_id === AppState.currentTenant.id);
+            categories.forEach(category => {
+                const catDiv = document.createElement('div');
+                catDiv.className = 'bg-white p-4 rounded-lg shadow-md mb-4';
+                catDiv.innerHTML = `<h4 class="font-medium mb-2">${category.name}</h4>`;
+
+                const items = DB.menuItems.filter(i => i.category_id === category.id);
+                items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex justify-between items-center mb-2';
+                    itemDiv.innerHTML = `
+                        <div>
+                            <span class="${item.is_available ? 'text-green-600' : 'text-red-600'}">${item.name}</span>
+                            <span class="text-sm text-gray-600 ml-2">${AppState.currentTenant.currency} ${item.price}</span>
+                        </div>
+                        <button onclick="toggleItemAvailability(${item.id})" class="px-3 py-1 rounded ${item.is_available ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}">
+                            ${item.is_available ? 'Disable' : 'Enable'}
+                        </button>
+                    `;
+                    catDiv.appendChild(itemDiv);
+                });
+
+                content.appendChild(catDiv);
+            });
+        }
+
+        function toggleItemAvailability(itemId) {
+            const item = DB.menuItems.find(i => i.id === itemId);
+            if (item) {
+                item.is_available = !item.is_available;
+                showMenuManagement();
+            }
+        }
+
+        function showTableManagement() {
+            const content = document.getElementById('dashboardContent');
+            content.innerHTML = '<h3 class="text-xl font-semibold mb-4">Table Management</h3>';
+
+            const tables = DB.tables.filter(t => t.tenant_id === AppState.currentTenant.id);
+            tables.forEach(table => {
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'bg-white p-4 rounded-lg shadow-md mb-4 flex justify-between items-center';
+                tableDiv.innerHTML = `
+                    <div>
+                        <h4 class="font-medium">Table ${table.number}</h4>
+                        <p class="text-sm text-gray-600">QR Code: ${table.qr_code}</p>
+                    </div>
+                    <button onclick="generateQR(${table.id})" class="bg-accent text-white px-4 py-2 rounded-lg">Generate QR</button>
+                `;
+                content.appendChild(tableDiv);
+            });
+        }
+
+        function generateQR(tableId) {
+            alert('QR Code generation would happen here in a real implementation.');
+        }
+
+        // Initialize
+        showView('landing');
+    </script>
+</body>
+
+</html>
